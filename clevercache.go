@@ -15,9 +15,9 @@ type Client struct {
 var enginekey gctx.Key
 
 type Clevercacher interface {
-	Get(ctx gctx.Context, key interface{}) (value interface{}, hit bool, err error)
-	Set(ctx gctx.Context, key interface{}, value interface{}) (err error)
-	Data(ctx gctx.Context, key interface{}) (value interface{}, err error)
+	Get(ctx gctx.Context, key interface{}, params map[string]interface{}) (value interface{}, hit bool, err error)
+	Set(ctx gctx.Context, key interface{}, value interface{}, params map[string]interface{}) (err error)
+	Data(ctx gctx.Context, key interface{}, params map[string]interface{}) (value interface{}, err error)
 }
 
 func init() {
@@ -36,7 +36,6 @@ func NewContext(ctx gctx.Context, engine interface{}) gctx.Context {
 
 // Get the cacheing engine from the context
 func FromContext(ctx gctx.Context) interface{} {
-	// ctx.Value returns nil if ctx has no value for the key;
 	engine := ctx.Value(enginekey)
 	return engine
 }
@@ -46,20 +45,20 @@ func (cl *Client) RegisterCache(c Clevercacher) {
 	cl.c = c
 }
 
-func (cl *Client) Get(ctx gctx.Context, key interface{}) (value interface{}, err error) {
+func (cl *Client) Get(ctx gctx.Context, key interface{}, params map[string]interface{}) (value interface{}, err error) {
 
-	value, hit, err := cl.c.Get(ctx, key)
+	value, hit, err := cl.c.Get(ctx, key, params)
 
 	if hit != true {
 		// run the cacher in the background
 		go func(ctx gctx.Context, cl *Client, key interface{}) {
-			value, err := cl.c.Data(ctx, key)
+			value, err := cl.c.Data(ctx, key, params)
 			log.Println("value from data - ", value)
 			if err != nil {
 				log.Printf("data for key %s cannot be found", key.(string))
 			}
 			log.Println("setting data")
-			err = cl.c.Set(ctx, key, value)
+			err = cl.c.Set(ctx, key, value, params)
 
 		}(ctx, cl, key)
 
@@ -74,9 +73,9 @@ func (cl *Client) Get(ctx gctx.Context, key interface{}) (value interface{}, err
 
 }
 
-func (cl *Client) Set(ctx gctx.Context, key interface{}, value interface{}) (err error) {
+func (cl *Client) Set(ctx gctx.Context, key interface{}, value interface{}, params map[string]interface{}) (err error) {
 
-	err = cl.c.Set(ctx, key, value)
+	err = cl.c.Set(ctx, key, value, params)
 
 	return
 
